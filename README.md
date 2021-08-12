@@ -14,6 +14,9 @@ to return values in millimeters.
 
 ---
 
+# How to use these files
+Load up your favourite MicroPython editor (I prefer [VS code](https://code.visualstudio.com/) or [Thonny](https://www.thonny.org)), then upload the `vl53l0x.py` file to the Pico, and then the `tof_test.py` file. Once you've uploaded these you can run them in Thonny and it will measure the distance and print it out to the REPL console.
+
 Happy Laser-based Measuring!
 
 Kevin McAleer, 
