@@ -108,12 +108,56 @@ ALGO_PHASECAL_CONFIG_TIMEOUT = 0x30
 class TimeoutError(RuntimeError):
     pass
 
+class VL53L0X_array():
+    """
+    Constructor
+    
+    i2c: I2C object (previously defined)
+    device_list: (("Name1", pin_xs_1), ("Name2", pin_xs_2), ...) where pin_xs_n is a
+        Pin object (previously defined as OUT) connected to the corresponding device's xshut pin
+    """
+    def __init__(self, i2c, device_list):
+        self.i2c = i2c
+        utime.sleep_ms(100) # give the I2C time to init
+        Xs_pins = dict((x,y) for x,y in device_list)
+        
+        # Disables all tof devices (xshut pin low):
+        for xshut in Xs_pins.values():
+            xshut.off()
+        
+        self.Devices = {}
+        address = 0x30 # Starting address
+        for i in Xs_pins.keys():
+            tof = VL53L0X(i2c=i2c, pin_xshut=Xs_pins[i], address=0x29)
+            tof.set_i2c_address(address)
+            address += 1
+            self.Devices[i] = tof
+    
+    """
+    Reads range in mm
+    
+    tof_id: String with device name, as defined in the constructor's device_list. If no name is
+        provided, returns a dictionary with all the devices' readings
+    """
+    def get_ping(self, tof_id=None):
+        if tof_id == None:
+            pings = {}
+            for i in self.Devices.keys():
+                pings[i] = self.Devices[i].ping()
+            return pings
+        elif tof_id in self.Devices.keys():
+            return self.Devices[tof_id].ping()
+        else:
+            return False
+
 
 class VL53L0X():
-    def __init__(self, i2c, address=0x29):
+    def __init__(self, i2c, pin_xshut, address=0x29):
         self.i2c = i2c
         self.address = address
-        utime.sleep_ms(100) # give the I2C time to init
+        self.pin_xshut = pin_xshut
+        self.pin_xshut.on() # Enables device
+        utime.sleep_ms(50) # give time to powerup
         self.init()
         self._started = False
         self.measurement_timing_budget_us = 0
@@ -430,6 +474,7 @@ class VL53L0X():
             )
             for timeout in range(_IO_TIMEOUT):
                 if not self._register(_SYSRANGE_START) & 0x01:
+                    print("TOF time: ", timeout)
                     break
                 utime.sleep_ms(1)
             else:
@@ -660,3 +705,11 @@ class VL53L0X():
         self._register(SYSTEM_INTERRUPT_CLEAR, 0x01)
         self._register(SYSRANGE_START, 0x00)
         return True
+    
+    def set_i2c_address(self, address):
+        if(address > 0x7F):
+            print("Error @set_i2c_address: I2C address must be < 0x7F")
+            return
+        self._register(I2C_SLAVE_DEVICE_ADDRESS, address)
+        self.address = address
+        

@@ -1,39 +1,31 @@
 # import time
 from machine import Pin, I2C
-from vl53l0x import VL53L0X
+from lib.vl53l0x import VL53L0X, VL53L0X_array
 
-print("setting up i2c")
-sda = Pin(0)
-scl = Pin(1)
-id = 0
+def print_i2c_scan():
+    print("I2C scan:")
+    for i in my_i2c.scan():
+        print("0x%2x"% i)
 
-i2c = I2C(id=id, sda=sda, scl=scl)
-
-print(i2c.scan())
-
-# print("creating vl53lox object")
-# Create a VL53L0X object
-tof = VL53L0X(i2c)
-
-# Pre: 12 to 18 (initialized to 14 by default)
-# Final: 8 to 14 (initialized to 10 by default)
+tof1_xs = Pin(28, Pin.OUT)
+tof2_xs = Pin(22, Pin.OUT)
+my_i2c = I2C(id=1, sda=Pin(26), scl=Pin(27))
+my_tofs = VL53L0X_array(my_i2c,(("tof1",tof1_xs),("tof2",tof2_xs)) )
+print_i2c_scan()
 
 # the measuting_timing_budget is a value in ms, the longer the budget, the more accurate the reading. 
-budget = tof.measurement_timing_budget_us
-print("Budget was:", budget)
-tof.set_measurement_timing_budget(40000)
+# for tof in tof_array.Devices.values():
+#     budget = tof.measurement_timing_budget_us
+#     print("Budget was:", budget)
+#     tof.set_measurement_timing_budget(40000)
 
 # Sets the VCSEL (vertical cavity surface emitting laser) pulse period for the 
 # given period type (VL53L0X::VcselPeriodPreRange or VL53L0X::VcselPeriodFinalRange) 
 # to the given value (in PCLKs). Longer periods increase the potential range of the sensor. 
 # Valid values are (even numbers only):
 
-# tof.set_Vcsel_pulse_period(tof.vcsel_period_type[0], 18)
-tof.set_Vcsel_pulse_period(tof.vcsel_period_type[0], 12)
+# tof.set_Vcsel_pulse_period(tof.vcsel_period_type[0], 12)
+# tof.set_Vcsel_pulse_period(tof.vcsel_period_type[1], 8)
 
-# tof.set_Vcsel_pulse_period(tof.vcsel_period_type[1], 14)
-tof.set_Vcsel_pulse_period(tof.vcsel_period_type[1], 8)
-
-while True:
-# Start ranging
+def get_dist():
     print(tof.ping()-50, "mm")
