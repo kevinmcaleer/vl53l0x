@@ -110,19 +110,54 @@ class TimeoutError(RuntimeError):
 
 class VL53L0X_array():
     """
-    device_list: Tuple with all VL53L0x objects and their names.
-        Format: (("Name1", device_1), ("Name2", device_2), ...) where device_n is a VL53L0x class object
+    Constructor
+    
+    i2c: I2C object (previously defined)
+    device_list: (("Name1", pin_xs_1), ("Name2", pin_xs_2), ...) where pin_xs_n is a
+        Pin object (previously defined as OUT) connected to the corresponding device's xshut pin
     """
-    def __init__(self, device_list):
-        self.Devices = dict((x,y) for x,y in device_list)
+    def __init__(self, i2c, device_list):
+        self.i2c = i2c
+        utime.sleep_ms(100) # give the I2C time to init
+        Xs_pins = dict((x,y) for x,y in device_list)
+        
+        # Disables all tof devices (xshut pin low):
+        for xshut in Xs_pins.values():
+            xshut.off()
+        
+        self.Devices = {}
+        address = 0x30 # Starting address
+        for i in Xs_pins.keys():
+            tof = VL53L0X(i2c=i2c, pin_xshut=Xs_pins[i], address=0x29)
+            tof.set_i2c_address(address)
+            address += 1
+            self.Devices[i] = tof
+    
+    """
+    Reads range in mm
+    
+    tof_id: String with device name, as defined in the constructor's device_list. If no name is
+        provided, returns a dictionary with all the devices' readings
+    """
+    def get_ping(self, tof_id=None):
+        if tof_id == None:
+            pings = {}
+            for i in self.Devices.keys():
+                pings[i] = self.Devices[i].ping()
+            return pings
+        elif tof_id in self.Devices.keys():
+            return self.Devices[tof_id].ping()
+        else:
+            return False
+
 
 class VL53L0X():
     def __init__(self, i2c, pin_xshut, address=0x29):
         self.i2c = i2c
         self.address = address
-        self.xshut_pin = pin_xshut
-        self.xshut_pin.on()
-        utime.sleep_ms(100) # give the I2C time to init
+        self.pin_xshut = pin_xshut
+        self.pin_xshut.on() # Enables device
+        utime.sleep_ms(50) # give time to powerup
         self.init()
         self._started = False
         self.measurement_timing_budget_us = 0
